@@ -1,0 +1,17 @@
+---
+title: "DV2 Final Project"
+author: "Peter Kaiser"
+date: '2022 02 06 '
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+
+olympics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-27/olympics.csv')
+
+#cleaning suggested by the author
+olympics <- olympics %>% janitor::clean_names()
+```
+
