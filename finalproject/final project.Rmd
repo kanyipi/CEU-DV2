@@ -8,10 +8,108 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(janitor)
+library(data.table)
+library(tidygeocoder)
+library(gganimate)
+library(scatterpie)
 
 olympics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-27/olympics.csv')
 
 #cleaning suggested by the author
 olympics <- olympics %>% janitor::clean_names()
+
+olympics <- as.data.table(olympics)
+
+#animacio evek top 10 aranyak histogram
+#scatterplot millio ember ermek szama
+#violin age
+#boxplot weight
+
+```
+
+```{r}
+#filtering for medals, and summer olympics
+olympics <- olympics[season=="Summer"]
+olympicsgold<-olympics[medal=="Gold"][,gold := 1]
+olympicssilver<-olympics[medal=="Silver"][,silver := 1]
+olympicsbronze<-olympics[medal=="Bronze"][,bronze := 1]
+
+olympics <- rbind(olympicsgold,olympicssilver,olympicsbronze, fill=TRUE)
+```
+
+```{r}
+hosting_city <- data.table(unique(olympics[,c("city","year")], by = "city"))
+hosting_city <- tidygeocoder::geocode(hosting_city, 'city')
+world <- map_data("world")
+ggplot() +
+  geom_map(
+    data = world, map = world,
+    aes(long, lat, map_id = region),
+    color = "black", fill = "lightgray", size = 0.1
+  ) +
+  geom_point(
+    data = hosting_city,
+    aes(long, lat, color=city),
+    size=3,
+    alpha = 0.5
+  ) +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title="Summer Olympics")
+```
+```{r}
+olympics_country <- distinct(olympics, noc, year, medal, event, .keep_all = TRUE)
+gold_table <- olympics_country[,list(sumgold = sum(gold, na.rm = TRUE)), by = list(year, noc)][sumgold>10]
+gold_table_count <- gold_table[,.N , by =noc]
+merge(gold_table, gold_table_count)[N>10]
+ggplot(gold_table, aes( y=sumgold, x=noc)) + 
+    geom_bar(position="dodge", stat="identity") +
+    transition_states(year) +
+    labs(
+        title = paste("Year {closest_state}"))+
+    theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+```{r}
+ggplot(olympics, aes(x=year, y=age, group = year)) + 
+  geom_boxplot() + theme_bw()
+```
+```{r}
+
+olympics_country <- distinct(olympics, noc, year, medal, event, .keep_all = TRUE)
+
+countr_codes <- as.data.table(readr::read_csv("country-codes.csv"))
+
+country_mapping <- countr_codes[,list(ISO3,ISO3166, official_name_en)][,ISO3166:=str_remove(ISO3166, "^0+")
+]
+
+pop_data <- as.data.table(readr::read_csv("pop-data.csv"))
+pop_data <- pop_data[Time==2019,list(LocID,PopTotal)][,LocID:=as.character(LocID)]
+
+pop_count_code <- merge(pop_data,country_mapping, by.x = "LocID", by.y = "ISO3166")
+
+olympics_pop <- merge(olympics_country, pop_count_code, by.x = "noc", by.y = "ISO3")
+dt <- unique(olympics_pop[,list(sumall=log(sum(gold,na.rm = TRUE)+sum(bronze,na.rm = TRUE)
+                                        +sum(silver,na.rm = TRUE)),
+                   sumgold=sum(gold,na.rm = TRUE),sumsilver=sum(silver,na.rm = TRUE),
+                   sumbronze=sum(bronze,na.rm = TRUE), PopTotal = log(PopTotal), official_name_en), by = "noc"])
+
+ggplot() + geom_scatterpie(aes(x=PopTotal, y=sumall, group=noc), data=dt, alpha=0.8,
+                           cols=c("sumgold","sumsilver","sumbronze")) + coord_equal()
+
+dt2 <- unique(olympics_pop[,list(sumall=(sum(gold,na.rm = TRUE)+sum(bronze,na.rm = TRUE)
+                                        +sum(silver,na.rm = TRUE)),
+                   sumgold=sum(gold,na.rm = TRUE),sumsilver=sum(silver,na.rm = TRUE),
+                   sumbronze=sum(bronze,na.rm = TRUE), PopTotal = (PopTotal), official_name_en), by = "noc"])
+
+dt2 <- as.data.table(tidygeocoder::geocode(dt, 'official_name_en'))[noc!="NKD"]
+
+world <- map_data('world')
+p <- ggplot(world, aes(long, lat)) +
+    geom_map(map=world, aes(map_id=region), fill=NA, color="black",) +
+    coord_quickmap()
+p + geom_scatterpie(aes(x=long, y=lat, group = noc),
+                    data=dt2, cols=c("sumgold","sumsilver","sumbronze"), color=NA, alpha=.8)
+p
 ```
 
