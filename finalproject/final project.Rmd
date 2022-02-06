@@ -12,6 +12,7 @@ library(data.table)
 library(tidygeocoder)
 library(gganimate)
 library(scatterpie)
+library(maps)
 
 olympics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-27/olympics.csv')
 
@@ -57,12 +58,13 @@ ggplot() +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title="Summer Olympics")
 ```
+
 ```{r}
 olympics_country <- distinct(olympics, noc, year, medal, event, .keep_all = TRUE)
-gold_table <- olympics_country[,list(sumgold = sum(gold, na.rm = TRUE)), by = list(year, noc)][sumgold>10]
+gold_table <- olympics_country[,list(sumgold = sum(gold, na.rm = TRUE)), by = list(year, noc)]
 gold_table_count <- gold_table[,.N , by =noc]
-merge(gold_table, gold_table_count)[N>10]
-ggplot(gold_table, aes( y=sumgold, x=noc)) + 
+gold_table_count <- merge(gold_table, gold_table_count)[N>10]
+ggplot(gold_table_count, aes( y=sumgold, x=noc)) + 
     geom_bar(position="dodge", stat="identity") +
     transition_states(year) +
     labs(
@@ -70,10 +72,12 @@ ggplot(gold_table, aes( y=sumgold, x=noc)) +
     theme_bw() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
+
 ```{r}
 ggplot(olympics, aes(x=year, y=age, group = year)) + 
   geom_boxplot() + theme_bw()
 ```
+
 ```{r}
 
 olympics_country <- distinct(olympics, noc, year, medal, event, .keep_all = TRUE)
@@ -102,14 +106,16 @@ dt2 <- unique(olympics_pop[,list(sumall=(sum(gold,na.rm = TRUE)+sum(bronze,na.rm
                    sumgold=sum(gold,na.rm = TRUE),sumsilver=sum(silver,na.rm = TRUE),
                    sumbronze=sum(bronze,na.rm = TRUE), PopTotal = (PopTotal), official_name_en), by = "noc"])
 
-dt2 <- as.data.table(tidygeocoder::geocode(dt, 'official_name_en'))[noc!="NKD"]
+dt2 <- as.data.table(tidygeocoder::geocode(dt, 'official_name_en'))
+dt2 <- dt2[noc!="MKD"]
+dt2 <- dt2[,sumall:=log(sumgold+sumsilver+sumbronze)/2]
 
 world <- map_data('world')
 p <- ggplot(world, aes(long, lat)) +
-    geom_map(map=world, aes(map_id=region), fill=NA, color="black",) +
+    geom_map(map=world, aes(map_id=region), fill=NA, color="black") +
     coord_quickmap()
-p + geom_scatterpie(aes(x=long, y=lat, group = noc),
-                    data=dt2, cols=c("sumgold","sumsilver","sumbronze"), color=NA, alpha=.8)
-p
+p + geom_scatterpie(aes(x=long, y=lat, group = noc, r=sumall),
+                    data=dt2, cols=c("sumgold","sumsilver","sumbronze"), color=NA, alpha=0.8)
+
 ```
 
