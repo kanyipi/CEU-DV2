@@ -1,0 +1,16 @@
+﻿variable,class,description
+id,double,Athlete ID
+name,character,Athlete Name
+sex,character,Athlete Sex
+age,double,Athlete Age
+height,double,Athlete Height in cm
+weight,double,Athlete weight in kg
+team,character,Country/Team competing for
+noc,character,noc region
+games,character,Olympic games name
+year,double,Year of olympics
+season,character,Season either winter or summer
+city,character,City of Olympic host
+sport,character,Sport
+event,character,Specific event
+medal,character,Medal (Gold, Silver, Bronze or NA)
